@@ -15,14 +15,14 @@ pipeline {
             }
         }
 
-        stage('Build (Install Dependencies)') {
-            steps {
-                sh '''
-                echo "Installing dependencies..."
-                pip3 install -r requirements.txt
-                '''
-            }
-        }
+        // stage('Build (Install Dependencies)') {
+        //     steps {
+        //         sh '''
+        //         echo "Installing dependencies..."
+        //         pip3 install -r requirements.txt
+        //         '''
+        //     }   
+        // }
 
         stage('Test') {
             steps {
