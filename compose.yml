@@ -1,0 +1,7 @@
+services :
+  python-jenkins:
+    build : .
+    image : python-jenkins
+    container_name : pyhton-jenkins
+    ports : 
+      - "8000:8000"
