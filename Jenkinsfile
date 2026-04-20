@@ -103,16 +103,48 @@ pipeline {
             }
         }
 
-        // (Optional) keep local deployment OR remove later
-        stage('Deploy Container (Local)') {
+
+        stage('Deploy to EC2') {
+            environment {
+                EC2_IP = "<YOUR-EC2-PUBLIC-IP>"
+            }   
             steps {
-                sh '''
-                echo "Deploying container locally..."
-                docker compose down || true
-                docker compose up -d
-                '''
+                sshagent(['ec2-ssh-key']) {
+                    sh '''
+                    ssh -o StrictHostKeyChecking=no ubuntu@$EC2_IP << EOF
+
+                    # Login to ECR
+                    aws ecr get-login-password --region ap-south-1 | \
+                    sudo docker login --username AWS --password-stdin 483591406306.dkr.ecr.ap-south-1.amazonaws.com
+
+                    # Pull latest image
+                    sudo docker pull 483591406306.dkr.ecr.ap-south-1.amazonaws.com/ecr-demo:latest
+
+                    # Stop old container
+                    sudo docker stop my-app || true
+
+                    # Remove old container
+                    sudo docker rm my-app || true
+
+                    # Run new container
+                    sudo docker run -d -p 80:8000 --name my-app \
+                    483591406306.dkr.ecr.ap-south-1.amazonaws.com/ecr-demo:latest
+
+                    EOF
+                    '''
+                }
             }
-        }
+}
+        // (Optional) keep local deployment OR remove later
+        // stage('Deploy Container (Local)') {
+        //     steps {
+        //         sh '''
+        //         echo "Deploying container locally..."
+        //         docker compose down || true
+        //         docker compose up -d
+        //         '''
+        //     }
+        // }
     }
 
     post {
