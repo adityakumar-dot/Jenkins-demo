@@ -106,7 +106,7 @@ pipeline {
 
         stage('Deploy to EC2') {
             environment {
-                EC2_IP = "<YOUR-EC2-PUBLIC-IP>"
+                EC2_IP = 43.205.146.250
             }   
             steps {
                 sshagent(['ec2-ssh-key']) {
