@@ -51,6 +51,7 @@ pipeline {
         AWS_REGION = "ap-south-1"
         ECR_REPO = "483591406306.dkr.ecr.ap-south-1.amazonaws.com/ecr-demo"
         IMAGE_TAG = "latest"
+        EC2_IP = "43.205.146.250"
     }
 
     stages {
@@ -70,7 +71,6 @@ pipeline {
             }
         }
 
-        // 🔥 NEW STEP: Tag image for ECR
         stage('Tag Image') {
             steps {
                 sh '''
@@ -79,7 +79,6 @@ pipeline {
             }
         }
 
-        // 🔥 THIS IS YOUR STEP 5 (ECR LOGIN)
         stage('Login to ECR') {
             steps {
                 withCredentials([[
@@ -94,7 +93,6 @@ pipeline {
             }
         }
 
-        // 🔥 Push image to ECR
         stage('Push to ECR') {
             steps {
                 sh '''
@@ -103,56 +101,40 @@ pipeline {
             }
         }
 
-
         stage('Deploy to EC2') {
-            environment {
-                EC2_IP = "43.205.146.250"
-            }   
             steps {
                 sshagent(['ec2-ssh-key']) {
-                    sh '''
-                    ssh -o StrictHostKeyChecking=no ubuntu@$EC2_IP << EOF
-
+                    sh """
+                    ssh -o StrictHostKeyChecking=no ubuntu@${EC2_IP} '
+                    
                     # Login to ECR
-                    aws ecr get-login-password --region ap-south-1 | \
-                    sudo docker login --username AWS --password-stdin 483591406306.dkr.ecr.ap-south-1.amazonaws.com
+                    aws ecr get-login-password --region ${AWS_REGION} | \
+                    sudo docker login --username AWS --password-stdin ${ECR_REPO} &&
 
                     # Pull latest image
-                    sudo docker pull 483591406306.dkr.ecr.ap-south-1.amazonaws.com/ecr-demo:latest
+                    sudo docker pull ${ECR_REPO}:${IMAGE_TAG} &&
 
-                    # Stop old container
-                    sudo docker stop my-app || true
-
-                    # Remove old container
-                    sudo docker rm my-app || true
+                    # Stop old container (ignore if not exists)
+                    sudo docker stop my-app || true &&
+                    sudo docker rm my-app || true &&
 
                     # Run new container
                     sudo docker run -d -p 80:8000 --name my-app \
-                    483591406306.dkr.ecr.ap-south-1.amazonaws.com/ecr-demo:latest
-
-                    EOF
-                    '''
+                    ${ECR_REPO}:${IMAGE_TAG}
+                    
+                    '
+                    """
                 }
             }
-}
-        // (Optional) keep local deployment OR remove later
-        // stage('Deploy Container (Local)') {
-        //     steps {
-        //         sh '''
-        //         echo "Deploying container locally..."
-        //         docker compose down || true
-        //         docker compose up -d
-        //         '''
-        //     }
-        // }
+        }
     }
 
     post {
         success {
-            echo "Pipeline successful! Image pushed to ECR 🚀"
+            echo "Pipeline successful! 🚀 App deployed to EC2"
         }
         failure {
-            echo "Pipeline failed!"
+            echo "Pipeline failed! ❌ Check logs"
         }
     }
 }
